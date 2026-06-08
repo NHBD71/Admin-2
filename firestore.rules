@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable, hardened global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email.matches('(?i)mnshiddik11@gmail\\.com') ||
+        request.auth.token.email.matches('(?i)admin9909@gmail\\.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Helper to validate Category Schema
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'categoryName', 'createdAt'])
+        && data.keys().size() == 3
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    // Helper to validate Member Schema
+    function isValidMember(data) {
+      return data.keys().hasAll(['id', 'agentId', 'fullName', 'profilePhoto', 'category', 'designation', 'facebookLink', 'imoNumber', 'whatsappNumber', 'createdAt'])
+        && data.keys().size() == 10
+        && data.id is string && data.id.size() >= 1 && data.id.size() <= 128
+        && data.agentId is string && data.agentId.size() <= 128
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 128
+        && data.profilePhoto is string && data.profilePhoto.size() <= 2000000
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 128
+        && data.designation is string && data.designation.size() <= 128
+        && data.facebookLink is string && data.facebookLink.size() <= 1000
+        && data.imoNumber is string && data.imoNumber.size() <= 128
+        && data.whatsappNumber is string && data.whatsappNumber.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    // 2. Categories Rules
+    match /categories/{categoryId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin() && isValidCategory(incoming()) && isValidId(categoryId);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 3. Members Rules
+    match /members/{memberId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin() && isValidMember(incoming()) && isValidId(memberId);
+      allow update: if isAdmin() && isValidMember(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // 4. Admin Rules
+    match /admins/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isAdmin() || (isSignedIn() && (request.auth.token.email.matches('(?i)mnshiddik11@gmail\\.com') || request.auth.token.email.matches('(?i)admin9909@gmail\\.com')));
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

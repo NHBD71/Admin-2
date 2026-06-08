@@ -1,0 +1,8 @@
+{
+  "name": "Admin Information Management",
+  "description": "A dynamic directory of members across categories with a fully functional admin control dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
